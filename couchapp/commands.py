@@ -7,12 +7,13 @@ from __future__ import print_function
 
 import logging
 import os
+import sys
+import urllib
 
-from couchapp import clone_app, generator, util
-from couchapp.autopush.command import autopush, DEFAULT_UPDATE_DELAY
+from couchapp import util
+from couchapp.config import Config
 from couchapp.errors import ResourceNotFound, AppError, BulkSaveError
 from couchapp.localdoc import document
-from couchapp.vendors import vendor_install, vendor_update
 
 logger = logging.getLogger(__name__)
 
@@ -22,43 +23,6 @@ def hook(conf, path, hook_type, *args, **kwargs):
         for h in conf.hooks.get(hook_type):
             if hasattr(h, 'hook'):
                 h.hook(path, hook_type, *args, **kwargs)
-
-
-def init(conf, *args, **opts):
-    if not args:
-        dest = os.getcwd()
-    else:
-        dest = os.path.normpath(os.path.join(os.getcwd(), args[0]))
-
-    if dest is None:
-        raise AppError('Unknown dest')
-
-    if opts['empty'] and opts['template']:
-        raise AppError('option "empty" cannot use with "template"')
-
-    if util.iscouchapp(dest):
-        raise AppError("can't create an app at '{0}'. "
-                       "One already exists here.".format(dest))
-
-    if util.findcouchapp(dest):
-        raise AppError("can't create an app inside another app '{0}'.".format(
-                       util.findcouchapp(dest)))
-
-    # ``couchapp init -e dest``
-    if opts['empty']:
-        document(dest, create=True)
-
-    # ``couchapp init -t template_name dest``
-    elif opts['template']:
-        generator.init_template(dest, template=opts['template'])
-
-    # ``couchapp init dest``
-    else:
-        generator.init_basic(dest)
-
-    logger.info('{0} created.'.format(dest))
-
-    return 0
 
 
 def push(conf, path, *args, **opts):
@@ -85,8 +49,11 @@ def push(conf, path, *args, **opts):
         raise AppError("You aren't in a couchapp.")
 
     conf.update(doc_path)
-
+    print("DEBUG doc_path: {}".format(doc_path))
+    print("DEBUG dest: {}".format(dest))
     doc = document(doc_path, create=False, docid=opts.get('docid'))
+    print("DEBUG doc: {}".format(doc))
+
     if export:
         if opts.get('output'):
             util.write_json(opts.get('output'), doc)
@@ -103,56 +70,6 @@ def push(conf, path, *args, **opts):
     docspath = os.path.join(doc_path, '_docs')
     if os.path.exists(docspath):
         pushdocs(conf, docspath, dest, *args, **opts)
-    return 0
-
-
-def pushapps(conf, source, dest=None, *args, **opts):
-    export = opts.get('export', False)
-    noatomic = opts.get('no_atomic', False)
-    browse = opts.get('browse', False)
-    dbs = conf.get_dbs(dest) if not export else None
-    apps = []
-    source = os.path.normpath(os.path.join(os.getcwd(), source))
-    appdirs = util.discover_apps(source)
-
-    logger.debug('Discovered apps: {0}'.format(appdirs))
-
-    for appdir in appdirs:
-        doc = document(appdir)
-        # if export mode, the ``dbs`` will be None
-        hook(conf, appdir, "pre-push", dbs=dbs, pushapps=True)
-        if export or not noatomic:
-            apps.append(doc)
-        else:
-            doc.push(dbs, True, browse)
-        hook(conf, appdir, "post-push", dbs=dbs, pushapps=True)
-
-    if not apps:
-        return 0
-
-    if export:
-        docs = [doc.doc() for doc in apps]
-        jsonobj = {'docs': docs}
-        if opts.get('output'):
-            util.write_json(opts.get('output'), jsonobj)
-        else:
-            print(util.json.dumps(jsonobj))
-        return 0
-
-    for db in dbs:
-        docs = [doc.doc(db) for doc in apps]
-        try:
-            db.save_docs(docs)
-        except BulkSaveError as e:
-            docs1 = []
-            for doc in e.errors:
-                try:
-                    doc['_rev'] = db.last_rev(doc['_id'])
-                    docs1.append(doc)
-                except ResourceNotFound:
-                    pass
-            if docs1:
-                db.save_docs(docs1)
     return 0
 
 
@@ -226,260 +143,18 @@ def pushdocs(conf, source, dest, *args, **opts):
     return 0
 
 
-def clone(conf, source, *args, **opts):
-    dest = args[0] if len(args) > 0 else None
+if __name__ == "__main__":
+    couchUrl = "http://USER:PASS@localhost:5984"
+    couchDBName = "wmagent_summary"
+    couchAppName = "WMStatsAgent"
+    basePath = "/Users/amaltaro/Pycharm/WMCore/src/couchapps/"
+    print("Installing %s into %s" % (couchAppName, urllib.unquote_plus(couchDBName)))
 
-    hook(conf, dest, "pre-clone", source=source)
-    clone_app.clone(source, dest, rev=opts.get('rev'))
-    hook(conf, dest, "post-clone", source=source)
-    return 0
+    couchappConfig = Config()
+    print("AMR couchappConfig: {}".format(couchappConfig))
+    print("AMR new basePath: {}".format(basePath))
 
-
-def startapp(conf, *args, **opts):
-    opts['empty'] = False
-    opts['template'] = ''
-
-    logger.warning('"startapp" will be deprecated in future release. '
-                   'Please use "init" instead.')
-
-    return init(conf, *args, **opts)
-
-
-def generate(conf, path, *args, **opts):
-    '''
-    :param path: result of util.findcouchapp
-    '''
-    dest = path
-    if len(args) < 1:
-        raise AppError("Can't generate function, name or path is missing")
-
-    if len(args) == 1:
-        kind = "app"
-        name = args[0]
-    elif len(args) == 2:
-        kind = args[0]
-        name = args[1]
-    elif len(args) >= 3:
-        kind = args[0]
-        dest = args[1]
-        name = args[2]
-
-    if kind == 'app':  # deprecated warning
-        logger.warning('"genrate app" will be deprecated in future release. '
-                       'Please use "init -t TEMPLATE" instead.')
-        args = (dest,) if dest is not None else tuple()
-        kwargs = {
-            'template': opts['template'] if opts['template'] else 'default',
-            'empty': False
-        }
-        return init(conf, *args, **kwargs)
-
-    if dest is None:
-        raise AppError("You aren't in a couchapp.")
-
-    hook(conf, dest, "pre-generate")
-    generator.generate(dest, kind, name, **opts)
-    hook(conf, dest, "post-generate")
-    return 0
-
-
-def vendor(conf, path, *args, **opts):
-    if len(args) < 1:
-        raise AppError("missing command")
-    dest = path
-    args = list(args)
-    cmd = args.pop(0)
-    if cmd == "install":
-        if len(args) < 1:
-            raise AppError("missing source")
-        if len(args) == 1:
-            source = args.pop(0)
-
-        elif len(args) > 1:
-            dest = args.pop(0)
-            source = args.pop(0)
-
-        if dest is None:
-            raise AppError("You aren't in a couchapp.")
-
-        dest = os.path.normpath(os.path.join(os.getcwd(), dest))
-        hook(conf, dest, "pre-vendor", source=source, action="install")
-        vendor_install(conf, dest, source, *args, **opts)
-        hook(conf, dest, "post-vendor", source=source, action="install")
-    else:
-        vendorname = None
-        if len(args) == 1:
-            vendorname = args.pop(0)
-        elif len(args) >= 2:
-            dest = args.pop(0)
-            vendorname = args.pop(0)
-        if dest is None:
-            raise AppError("You aren't in a couchapp.")
-
-        dest = os.path.normpath(os.path.join(os.getcwd(), dest))
-        hook(conf, dest, "pre-vendor", name=vendorname, action="update")
-        vendor_update(conf, dest, vendorname, *args, **opts)
-        hook(conf, dest, "pre-vendor", name=vendorname, action="update")
-    return 0
-
-
-def browse(conf, path, *args, **opts):
-    if len(args) == 0:
-        dest = path
-        doc_path = '.'
-    else:
-        doc_path = path
-        dest = args[0]
-
-    doc_path = os.path.normpath(os.path.join(os.getcwd(), doc_path))
-    if not util.iscouchapp(doc_path):
-        raise AppError("Dir '{0}' is not a couchapp.".format(doc_path))
-
-    conf.update(doc_path)
-
-    doc = document(doc_path, create=False, docid=opts.get('docid'))
-
-    dbs = conf.get_dbs(dest)
-    doc.browse(dbs)
-
-
-def version(conf, *args, **opts):
-    from couchapp import __version__
-
-    print("Couchapp (version {0})".format(__version__))
-    print("Copyright 2008-2016 Benoît Chesneau <benoitc@e-engura.org>")
-    print("Licensed under the Apache License, Version 2.0.")
-
-    if opts.get('help', False):
-        usage(conf, *args, **opts)
-
-    return 0
-
-
-def usage(conf, *args, **opts):
-    if opts.get('version', False):
-        version(conf, *args, **opts)
-    print('Usage: couchapp [OPTIONS] [CMD] [CMDOPTIONS] [ARGS,...]')
-
-    print()
-    print('Options:')
-    mainopts = []
-    max_opt_len = len(max(globalopts, key=len))
-    for opt in globalopts:
-        print('\t{opt: <{max_len}}'.format(opt=get_switch_str(opt),
-                                           max_len=max_opt_len))
-        mainopts.append(opt[0])
-
-    print()
-    print('Commands:')
-    commands = sorted(table.keys())
-    max_len = len(max(commands, key=len))
-    for cmd in commands:
-        opts = table[cmd]
-        print('\t{cmd: <{max_len}} {opts}'.format(
-              cmd=cmd, max_len=max_len, opts=opts[2]))
-        # Print each command's option list
-        cmd_options = opts[1]
-        if cmd_options:
-            max_opt = max(cmd_options, key=lambda o: len(get_switch_str(o)))
-            max_opt_len = len(get_switch_str(max_opt))
-            for opt in cmd_options:
-                print('\t\t{opt_str: <{max_len}} {opts}'.format(
-                      opt_str=get_switch_str(opt), max_len=max_opt_len,
-                      opts=opt[3]))
-    return 0
-
-
-def get_switch_str(opt):
-    """
-    Output just the '-r, --rev [VAL]' part of the option string.
-    """
-    if opt[2] is None or opt[2] is True or opt[2] is False:
-        default = ""
-    else:
-        default = "[VAL]"
-    if opt[0]:
-        # has a short and long option
-        return '-{opt[0]}, --{opt[1]} {default}'.format(opt=opt,
-                                                        default=default)
-    else:
-        # only has a long option
-        return '--{opt[1]} {default}'.format(opt=opt, default=default)
-
-
-globalopts = [
-    ('d', 'debug', None, "debug mode"),
-    ('h', 'help', None, "display help and exit"),
-    ('', 'version', None, "display version and exit"),
-    ('v', 'verbose', None, "enable additionnal output"),
-    ('q', 'quiet', None, "don't print any message")
-]
-
-pushopts = [
-    ('', 'no-atomic', False, "send attachments one by one"),
-    ('', 'export', False, "don't do push, just export doc to stdout"),
-    ('', 'output', '', "if export is selected, output to the file"),
-    ('b', 'browse', False, "open the couchapp in the browser"),
-    ('', 'force', False, "force attachments sending")
-]
-
-table = {
-    "init": (
-        init,
-        [('e', 'empty', False, 'create .couchapprc and .couchappignore only'),
-         ('t', 'template', '', 'create from template')],
-        "[OPTION]... [COUCHAPPDIR]"
-    ),
-    "push": (
-        push,
-        pushopts + [('', 'docid', '', "set docid")],
-        "[OPTION]... [COUCHAPPDIR] DEST"
-    ),
-    "clone": (
-        clone,
-        [('r', 'rev', '', "clone specific revision")],
-        "[OPTION]...[-r REV] SOURCE [COUCHAPPDIR]"
-    ),
-    "pushapps": (
-        pushapps,
-        pushopts,
-        "[OPTION]... SOURCE DEST"
-    ),
-    "pushdocs": (
-        pushdocs,
-        pushopts,
-        "[OPTION]... SOURCE DEST"
-    ),
-    "startapp": (
-        startapp,
-        [],
-        "[COUCHAPPDIR] NAME"
-    ),
-    "generate": (
-        generate,
-        [('', 'template', '', "template name")],
-        ("[OPTION]... [view,list,show,spatial,filter,function,vendor]"
-         " [COUCHAPPDIR] NAME")
-     ),
-    "vendor": (
-        vendor,
-        [("f", 'force', False, "force install or update")],
-        "[OPTION]...[-f] install|update [COUCHAPPDIR] SOURCE"
-    ),
-    "browse": (
-        browse,
-        [],
-        "[COUCHAPPDIR] DEST"
-    ),
-    "autopush": (
-        autopush,
-        [('', 'no-atomic', False, "send attachments one by one"),
-         ('', 'update-delay', DEFAULT_UPDATE_DELAY, "time between each update")],
-        "[OPTION]... [COUCHAPPDIR] DEST"
-     ),
-    "help": (usage, [], ""),
-    "version": (version, [], "")
-}
-
-withcmd = ['generate', 'vendor']
-incouchapp = ['push', 'generate', 'vendor', 'autopush']
+    push(couchappConfig, "%s/%s" % (basePath, couchAppName),
+         "%s/%s" % (couchUrl, couchDBName))
+    print("Done")
+    sys.exit(0)

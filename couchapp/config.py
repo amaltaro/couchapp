@@ -4,15 +4,13 @@
 # See the NOTICE for more information.
 
 import logging
-import re
 import os
-
+import re
 from copy import deepcopy
 
-from .client import Database
-from .errors import AppError
-from . import util
-
+from couchapp import util
+from couchapp.client import Database
+from couchapp.errors import AppError
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +22,10 @@ class Config(object):
     DEFAULT_SERVER_URI = "http://127.0.0.1:5984"
 
     DEFAULTS = dict(
-        env={},
-        extensions=[],
-        hooks={},
-        vendors=[]
+            env={},
+            extensions=[],
+            hooks={},
+            vendors=[]
     )
 
     def __init__(self):
@@ -81,8 +79,8 @@ class Config(object):
             del json_conf['env']
 
         return self.load(
-            os.path.join(app_path, '.couchapprc'),
-            default=json_conf)
+                os.path.join(app_path, '.couchapprc'),
+                default=json_conf)
 
     def update(self, path):
         '''
@@ -137,8 +135,8 @@ class Config(object):
     @property
     def hooks(self):
         return dict(
-            (hooktype, [util.hook_uri(uri, self) for uri in uris])
-            for hooktype, uris in self.conf.get('hooks', {}).items()
+                (hooktype, [util.hook_uri(uri, self) for uri in uris])
+                for hooktype, uris in self.conf.get('hooks', {}).items()
         )
 
     # TODO: add oauth management
@@ -149,7 +147,7 @@ class Config(object):
         db_string = db_string or ''
         env = self.conf.get('env', {})
         is_full_uri = any(map(db_string.startswith,
-                              ('http://', 'https://', 'desktopcouch://')))
+                              ('http://', 'https://')))
 
         if not db_string and 'default' not in env:
             raise AppError("database isn't specified")
@@ -175,7 +173,7 @@ class Config(object):
     def get_app_name(self, dbstring=None, default=None):
         dbstring = dbstring or ''
         env = self.conf.get('env', {})
-        is_full_uri = re.match('(https?|desktopcouch)://', dbstring)
+        is_full_uri = re.match('(https?)://', dbstring)
 
         if not is_full_uri and dbstring in env:
             return env[dbstring].get('name', default)

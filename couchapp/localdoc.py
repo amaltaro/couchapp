@@ -12,31 +12,12 @@ import os
 import os.path
 import re
 import urlparse
-import webbrowser
-
 from copy import copy
 from itertools import chain
 
-try:
-    import desktopcouch
-    try:
-        from desktopcouch.application import local_files
-    except ImportError:
-        from desktopcouch import local_files
-except ImportError:
-    desktopcouch = None
-
-
 from couchapp import util
-from couchapp.errors import ResourceNotFound, AppError
+from couchapp.errors import ResourceNotFound
 from couchapp.macros import package_shows, package_views
-
-if os.name == 'nt':
-    def _replace_backslash(name):
-        return name.replace("\\", "/")
-else:
-    def _replace_backslash(name):
-        return name
 
 re_comment = re.compile("((?:\/\*(?:[^*]|(?:\*+[^*\/]))*\*+\/)|(?:\/\/.*))")
 
@@ -47,7 +28,6 @@ DEFAULT_IGNORE = """[
   // ".*\\\\.swp"
   // ".*\\\\.bak"
 ]"""
-
 
 logger = logging.getLogger(__name__)
 
@@ -152,35 +132,6 @@ class LocalDoc(object):
                                                     u.fragment))
 
                 logger.info("Visit your CouchApp here:\n%s", indexurl)
-                if browser:
-                    self.browse_url(indexurl)
-
-    def browse(self, dbs):
-        for db in dbs:
-            doc = self.doc()
-            indexurl = self.index(db.raw_uri, doc['couchapp'].get('index'))
-            if indexurl:
-                self.browse_url(indexurl)
-
-    def browse_url(self, url):
-        if url.startswith("desktopcouch://"):
-            if not desktopcouch:
-                raise AppError("Desktopcouch isn't available on this" +
-                               "machine. You can't access to %s" % url)
-            ctx = local_files.DEFAULT_CONTEXT
-            bookmark_file = os.path.join(ctx.db_dir, "couchdb.html")
-            try:
-                username, password = \
-                    re.findall("<!-- !!([^!]+)!!([^!]+)!! -->",
-                               open(bookmark_file).read())[-1]
-            except ValueError:
-                raise IOError("Bookmark file is corrupt." +
-                              "Username/password are missing.")
-
-            url = "http://%s:%s@localhost:%s/%s" % (username, password,
-                                                    desktopcouch.find_port(),
-                                                    url[15:])
-        webbrowser.open_new_tab(url)
 
     def attachment_stub(self, name, filepath):
         att = {}
@@ -188,7 +139,7 @@ class LocalDoc(object):
             re_sp = re.compile('\s')
             att = {"data": re_sp.sub('', base64.b64encode(f.read())),
                    "content_type":
-                   ';'.join(filter(None, mimetypes.guess_type(name)))}
+                       ';'.join(filter(None, mimetypes.guess_type(name)))}
 
         return att
 
@@ -268,7 +219,7 @@ class LocalDoc(object):
 
             if 'validate_doc_update' in self._doc:
                 tmp_dict = {'validate_doc_update':
-                            self._doc["validate_doc_update"]}
+                                self._doc["validate_doc_update"]}
                 package_shows(self._doc, tmp_dict, self.docdir, objects)
                 self._doc.update(tmp_dict)
 
@@ -316,7 +267,7 @@ class LocalDoc(object):
         for pattern in self.ignores:
             # ('/' + item) is for abs path, some duplicated generated but work
             paths = chain(self._combine_path(item),
-                          self._combine_path('/' +item))
+                          self._combine_path('/' + item))
             matches = (re.match(pattern + '$', i) for i in paths)
             if any(matches):
                 logger.debug("ignoring %s", item)
@@ -361,8 +312,7 @@ class LocalDoc(object):
 
         for name in os.listdir(current_dir):
             current_path = os.path.join(current_dir, name)
-            rel_path = _replace_backslash(util.relpath(current_path,
-                                                       self.docdir))
+            rel_path = util.relpath(current_path, self.docdir)
             if name.startswith('.'):
                 continue
             elif self.check_ignore(rel_path):
@@ -377,7 +327,7 @@ class LocalDoc(object):
                 if name == "couchapp":
                     manifest.append('%s/' % rel_path)
                     content = self.dir_to_fields(
-                        current_path, depth=depth + 1, manifest=manifest)
+                            current_path, depth=depth + 1, manifest=manifest)
                 else:
                     manifest.append(rel_path)
                     content = util.read_json(current_path)
@@ -387,7 +337,7 @@ class LocalDoc(object):
             elif os.path.isdir(current_path):
                 manifest.append('%s/' % rel_path)
                 fields[name] = self.dir_to_fields(
-                    current_path, depth=depth + 1, manifest=manifest)
+                        current_path, depth=depth + 1, manifest=manifest)
 
             else:  # handler for normal file
                 logger.debug('push %s', rel_path)
@@ -482,7 +432,6 @@ class LocalDoc(object):
                 name = util.relpath(filepath, path)
                 if vendor is not None:
                     name = os.path.join('vendor', vendor, name)
-                name = _replace_backslash(name)
                 yield (name, filepath)
 
     def attachments(self):

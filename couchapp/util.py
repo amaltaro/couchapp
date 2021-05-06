@@ -13,122 +13,21 @@ import os
 import re
 import string
 import subprocess
-import sys
 
 from hashlib import md5
 
 from couchapp.errors import AppError, ScriptError
 
-try:
-    import json
-except ImportError:
-    try:
-        import simplejson as json
-    except ImportError:
-        raise ImportError("""
-        simplejson isn't installed on your system. Install it by running
-        the command line:
-
-        pip install simplejson
-        """)
+import json
+from importlib import import_module
 
 logger = logging.getLogger(__name__)
 
-try:
-    from importlib import import_module
-except ImportError:
-    def _resolve_name(name, package, level):
-        """Return the absolute name of the module to be imported."""
-        if not hasattr(package, 'rindex'):
-            raise ValueError("'package' not set to a string")
-        dot = len(package)
-        for x in xrange(level, 1, -1):
-            try:
-                dot = package.rindex('.', 0, dot)
-            except ValueError:
-                raise ValueError("attempted relative import beyond top-level "
-                                 "package")
-        return "%s.%s" % (package[:dot], name)
+def user_rcpath():
+    return [os.path.expanduser('~/.couchapp.conf')]
 
-    def import_module(name, package=None):
-        """Import a module.
-
-        The 'package' argument is required when performing a relative import.
-        It specifies the package to use as the anchor point from which to
-        resolve the relative import to an absolute import.
-
-        """
-        if name.startswith('.'):
-            if not package:
-                raise TypeError("relative imports require the 'package' "
-                                + "argument")
-            level = 0
-            for character in name:
-                if character != '.':
-                    break
-                level += 1
-            name = _resolve_name(name[level:], package, level)
-        __import__(name)
-        return sys.modules[name]
-
-
-def is_windows():
-    return sys.platform == 'win32' or os.name == 'nt'
-
-
-def is_py2exe():
-    return is_windows() and hasattr(sys, 'frozen')
-
-
-if is_windows():
-    from win32com.shell import shell, shellcon
-
-    def user_rcpath():
-        path = []
-        try:
-            home = os.path.expanduser('~')
-            if sys.getwindowsversion()[3] != 2 and home == '~':
-                # We are on win < nt: fetch the APPDATA directory location and
-                # use the parent directory as the user home dir.
-                appdir = shell.SHGetPathFromIDList(
-                    shell.SHGetSpecialFolderLocation(0,
-                                                     shellcon.CSIDL_APPDATA))
-                home = os.path.dirname(appdir)
-            path.append(os.path.join(home, '.couchapp.conf'))
-        except:
-            home = os.path.expanduser('~')
-            path.append(os.path.join(home, '.couchapp.conf'))
-        userprofile = os.environ.get('USERPROFILE')
-        if userprofile:
-            path.append(os.path.join(userprofile, '.couchapp.conf'))
-        return path
-
-    def user_path():
-        path = []
-        try:
-            home = os.path.expanduser('~')
-            if sys.getwindowsversion()[3] != 2 and home == '~':
-                 # We are on win < nt: fetch the APPDATA directory location and
-                    # use the parent directory as the user home dir.
-                appdir = shell.SHGetPathFromIDList(
-                    shell.SHGetSpecialFolderLocation(0,
-                                                     shellcon.CSIDL_APPDATA))
-                home = os.path.dirname(appdir)
-            path.append(os.path.join(home, '.couchapp'))
-        except:
-            home = os.path.expanduser('~')
-            path.append(os.path.join(home, '.couchapp'))
-        userprofile = os.environ.get('USERPROFILE')
-        if userprofile:
-            path.append(os.path.join(userprofile, '.couchapp'))
-        return path
-
-else:
-    def user_rcpath():
-        return [os.path.expanduser('~/.couchapp.conf')]
-
-    def user_path():
-        return [os.path.expanduser('~/.couchapp')]
+def user_path():
+    return [os.path.expanduser('~/.couchapp')]
 
 
 relpath = os.path.relpath
@@ -336,8 +235,7 @@ def write(fname, content):
     """
     with open(fname, 'wb') as f:
         f.write(to_bytestring(content))
-        if not is_windows():
-            f.write('\n')
+        f.write('\n')
 
 
 def write_json(fname, obj):

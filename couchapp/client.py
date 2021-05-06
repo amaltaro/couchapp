@@ -9,26 +9,17 @@ import itertools
 import logging
 import re
 import types
-
+import json
+import requests
 try:
-    import desktopcouch
-    try:
-        from desktopcouch.application import local_files
-    except ImportError:
-        from desktopcouch import local_files
+    from urllib import quote
 except ImportError:
-    desktopcouch = None
-
-from restkit import Resource, ClientResponse, ResourceError
-from restkit import util
-from restkit import oauth2 as oauth
-from restkit.filters import OAuthFilter
-
+    # PY3
+    from urllib.parse import quote
 from couchapp import __version__
 from couchapp.errors import ResourceNotFound, ResourceConflict, \
     PreconditionFailed, RequestFailed, BulkSaveError, Unauthorized, \
-    InvalidAttachment, AppError
-from couchapp.util import json
+    InvalidAttachment
 
 USER_AGENT = "couchapp/{0}".format(__version__)
 
@@ -42,7 +33,7 @@ UNKNOWN_VERSION = tuple()
 logger = logging.getLogger(__name__)
 
 
-class CouchdbResponse(ClientResponse):
+class CouchdbResponse(object):
 
     @property
     def json_body(self):
@@ -52,7 +43,7 @@ class CouchdbResponse(ClientResponse):
             return self.body
 
 
-class CouchdbResource(Resource):
+class CouchdbResource(object):
 
     def __init__(self, uri="http://127.0.0.1:5984", **client_opts):
         """Constructor for a `CouchdbResource` object.
@@ -62,8 +53,11 @@ class CouchdbResource(Resource):
         @param uri: str, full uri to the server.
         """
         client_opts['response_class'] = CouchdbResponse
+        print("AMR initializing CouchdbResource with client_opts: {}".format(client_opts))
 
-        Resource.__init__(self, uri=uri, **client_opts)
+        self.uri = uri
+        self.client_opts = client_opts
+        #requests.__init__(self, uri=uri, **client_opts)
         self.safe = ":/%"
 
     def copy(self, path=None, headers=None, **params):
@@ -110,9 +104,9 @@ class CouchdbResource(Resource):
         logger.debug("Params: %s", str(params))
 
         try:
-            return Resource.request(self, method, path=path,
+            return requests.request(self, method, path=path,
                                     payload=payload, headers=headers, **params)
-        except ResourceError, e:
+        except Exception as e:
             msg = getattr(e, 'msg', '')
             if e.response and msg:
                 if e.response.headers.get('content-type') == \
@@ -197,25 +191,6 @@ class Database(object):
             uri = uri[:-1]
 
         self.raw_uri = uri
-        if uri.startswith("desktopcouch://"):
-            if not desktopcouch:
-                raise AppError("Desktopcouch isn't available on this" +
-                               "machine. You can't access to %s" % uri)
-            uri = "http://localhost:%s/%s" % (
-                desktopcouch.find_port(), uri[15:])
-            ctx = local_files.DEFAULT_CONTEXT
-            oauth_tokens = local_files.get_oauth_tokens(ctx)
-
-            consumer = oauth.Consumer(oauth_tokens["consumer_key"],
-                                      oauth_tokens["consumer_secret"])
-            token = oauth.Token(oauth_tokens["token"],
-                                oauth_tokens["token_secret"])
-
-            oauth_filter = OAuthFilter("*", consumer, token)
-            filters = client_opts.get("filters") or []
-            filters.append(oauth_filter)
-            client_opts["filters"] = filters
-
         self.res = CouchdbResource(uri=uri, **client_opts)
         self.server_uri, self.dbname = uri.rsplit('/', 1)
 
@@ -447,7 +422,7 @@ class Database(object):
             else:
                 raise InvalidAttachment('You should provid a valid ' +
                                         'attachment name')
-        name = util.url_quote(name, safe="")
+        name = quote(name, safe="")
         res = self.res.put("%s/%s" % (escape_docid(doc['_id']), name),
                            payload=content, headers=headers, rev=doc['_rev'])
         json_res = res.json_body
@@ -464,7 +439,7 @@ class Database(object):
 
         @return: updated document object
         """
-        name = util.url_quote(name, safe="")
+        name = quote(name, safe="")
         self.res.delete("%s/%s" % (escape_docid(doc['_id']), name),
                         rev=doc['_rev']).json_body
         return doc.update(self.open_doc(doc['_id']))
@@ -503,9 +478,9 @@ def escape_docid(docid):
     if docid.startswith('/'):
         docid = docid[1:]
     if docid.startswith('_design'):
-        docid = '_design/%s' % util.url_quote(docid[8:], safe='')
+        docid = '_design/%s' % quote(docid[8:], safe='')
     else:
-        docid = util.url_quote(docid, safe='')
+        docid = quote(docid, safe='')
     return docid
 
 

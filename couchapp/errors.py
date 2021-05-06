@@ -4,9 +4,6 @@
 # See the NOTICE for more information.
 
 
-from restkit import ResourceError
-
-
 class AppError(Exception):
     """ raised when a application error appear """
 
@@ -19,15 +16,15 @@ class VendorError(Exception):
     """ vendor error """
 
 
-class ResourceNotFound(ResourceError):
+class ResourceNotFound(Exception):
     """ raised when a resource not found on CouchDB"""
 
 
-class ResourceConflict(ResourceError):
+class ResourceConflict(Exception):
     """ raised when a conflict occured"""
 
 
-class PreconditionFailed(ResourceError):
+class PreconditionFailed(Exception):
     """ precondition failed error """
 
 

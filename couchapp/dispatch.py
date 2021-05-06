@@ -76,8 +76,6 @@ def _dispatch(args):
     verbose = 2
     if globalopts["debug"]:
         verbose = 1
-        import restkit
-        restkit.set_logging("debug")
     elif globalopts["verbose"]:
         verbose = 1
     elif globalopts["quiet"]:
