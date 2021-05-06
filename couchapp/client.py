@@ -4,13 +4,16 @@
 # See the NOTICE for more information.
 
 from __future__ import with_statement
+
 import base64
 import itertools
+import json
 import logging
 import re
 import types
-import json
+
 import requests
+
 try:
     from urllib import quote
 except ImportError:
@@ -33,14 +36,44 @@ UNKNOWN_VERSION = tuple()
 logger = logging.getLogger(__name__)
 
 
-class CouchdbResponse(object):
+class CouchdbResponse(requests.Response):
+
+    def __init__(self, respObj):
+        super(CouchdbResponse, self).__init__()
+        self.response = respObj
 
     @property
     def json_body(self):
-        try:
-            return json.loads(self.body_string())
-        except ValueError:
-            return self.body
+        """
+        Parse the response object and return its json data,
+        or raise an exception if it failed
+        """
+        if self.response.ok:
+            print("Response status_code: {}".format(self.response.status_code))
+            print("Response text: {}".format(self.response.text))
+            print("Response headers: {}".format(self.response.headers))
+            print("Response encoding: {}".format(self.response.encoding))
+            print("Response content: {}".format(self.response.content))
+            self.response.close()
+            try:
+                return self.response.json()
+            except ValueError:
+                # No JSON object could be decoded
+                return self.response.content
+        else:
+            errorReason = self.response.reason
+            errorCode = self.response.status_code
+
+        if errorCode in (401, 403):
+            raise Unauthorized(str(self.response))
+        elif errorCode == 404:
+            raise ResourceNotFound(errorReason, http_code=errorCode, response=self.response.text)
+        elif errorCode == 409:
+            raise ResourceConflict(errorReason, http_code=errorCode, response=self.response.text)
+        elif errorCode == 412:
+            raise PreconditionFailed(errorReason, http_code=errorCode, response=self.response.text)
+        else:
+            raise RequestFailed(str(self.response))
 
 
 class CouchdbResource(object):
@@ -56,8 +89,10 @@ class CouchdbResource(object):
         print("AMR initializing CouchdbResource with client_opts: {}".format(client_opts))
 
         self.uri = uri
+        # FIXME: dangerous if the database name is not part of the URI
+        # self.database = uri.rsplit("/", 1)[1]
         self.client_opts = client_opts
-        #requests.__init__(self, uri=uri, **client_opts)
+        # requests.__init__(self, uri=uri, **client_opts)
         self.safe = ":/%"
 
     def copy(self, path=None, headers=None, **params):
@@ -93,62 +128,38 @@ class CouchdbResource(object):
         @return: tuple (data, resp), where resp is an `httplib2.Response`
             object and data a python object (often a dict).
         """
-
+        path = path if path else self.uri
         headers = headers or {}
         headers.setdefault('Accept', 'application/json')
         headers.setdefault('User-Agent', USER_AGENT)
 
-        logger.debug("Resource uri: %s", self.initial['uri'])
-        logger.debug("Request: %s %s", method, path)
-        logger.debug("Headers: %s", str(headers))
-        logger.debug("Params: %s", str(params))
+        path += "_test1"
+        print("Resource uri: {}".format(self.uri))
+        print("Resource client_opts: {}".format(self.client_opts))
+        print("Request: {} {}".format(method, path))
+        print("Payload: {}".format(str(payload)))
+        print("Headers: {}".format(str(headers)))
+        print("Params: {}".format(str(params)))
 
         try:
-            return requests.request(self, method, path=path,
-                                    payload=payload, headers=headers, **params)
+            resp = requests.request(method, url=path, data=payload,
+                                    headers=headers, **params)
         except Exception as e:
-            msg = getattr(e, 'msg', '')
-            if e.response and msg:
-                if e.response.headers.get('content-type') == \
-                        'application/json':
-                    try:
-                        msg = json.loads(str(msg))
-                    except ValueError:
-                        pass
-
-            if type(msg) is dict:
-                error = msg.get('reason')
-            else:
-                error = msg
-
-            if e.status_int == 404:
-                raise ResourceNotFound(error, http_code=404,
-                                       response=e.response)
-
-            elif e.status_int == 409:
-                raise ResourceConflict(error, http_code=409,
-                                       response=e.response)
-            elif e.status_int == 412:
-                raise PreconditionFailed(error, http_code=412,
-                                         response=e.response)
-
-            elif e.status_int in (401, 403):
-                raise Unauthorized(e)
-            else:
-                raise RequestFailed(str(e))
-        except Exception, e:
+            print("Error was: {}".format(e))
+            print("Error dir: {}".format(dir(e)))
             raise RequestFailed('unknown error [%s]', str(e))
+        return CouchdbResponse(resp).json_body
 
 
 def couchdb_version(server_uri):
     res = CouchdbResource(server_uri)
 
     try:
-        resp = res.get()
+        resp = res.request("GET")
     except Exception:
         return UNKNOWN_VERSION
 
-    version = resp.json_body["version"]
+    version = CouchdbResponse(resp).json_body
     t = []
     for p in version.split("."):
         try:
@@ -162,6 +173,8 @@ def couchdb_version(server_uri):
 class Uuids(object):
 
     def __init__(self, uri, max_uuids=1000, **client_opts):
+        api = "_uuids"
+        uri = "{}/{}".format(uri, api)
         self.res = CouchdbResource(uri=uri, **client_opts)
         self._uuids = []
         self.max_uuids = max_uuids
@@ -177,7 +190,7 @@ class Uuids(object):
 
     def fetch_uuids(self):
         count = self.max_uuids - len(self._uuids)
-        resp = self.res.get('/_uuids', count=count)
+        resp = self.res.request("GET", count=count)
         self._uuids += resp.json_body['uuids']
 
 
@@ -199,22 +212,19 @@ class Database(object):
         if create:
             # create the db
             try:
-                self.res.head()
+                self.res.request("HEAD")
             except ResourceNotFound:
-                self.res.put()
+                self.res.request("PUT")
 
     def delete(self):
-        self.res.delete()
+        self.res.request("DELETE")
 
     def info(self):
         """
         Get database information
-
-        @param _raw_json: return raw json instead deserializing it
-
         @return: dict
         """
-        return self.res.get().json_body
+        return self.res.request("GET")
 
     def all_docs(self, **params):
         """
@@ -236,7 +246,7 @@ class Database(object):
         @return: dict, representation of CouchDB document as
          a dict.
         """
-        resp = self.res.get(escape_docid(docid), **params)
+        resp = self.res.request("GET", escape_docid(docid), **params)
 
         if wrapper is not None:
             if not callable(wrapper):
@@ -271,20 +281,20 @@ class Database(object):
         if '_id' in doc:
             docid = escape_docid(doc['_id'])
             try:
-                resp = self.res.put(docid, payload=json.dumps(doc), **params)
+                resp = self.res.request("PUT", docid, payload=json.dumps(doc), **params)
             except ResourceConflict:
                 if not force_update:
                     raise
                 rev = self.last_rev(doc['_id'])
                 doc['_rev'] = rev
-                resp = self.res.put(docid, payload=json.dumps(doc), **params)
+                resp = self.res.request("PUT", docid, payload=json.dumps(doc), **params)
         else:
             json_doc = json.dumps(doc)
             try:
                 doc['_id'] = self.uuids.next()
-                resp = self.res.put(doc['_id'], payload=json_doc, **params)
+                resp = self.res.request("PUT", doc['_id'], payload=json_doc, **params)
             except ResourceConflict:
-                resp = self.res.post(payload=json_doc, **params)
+                resp = self.res.request("POST", payload=json_doc, **params)
 
         json_res = resp.json_body
         doc1 = {}
@@ -300,7 +310,7 @@ class Database(object):
 
         @return rev: str, the last revision of document.
         """
-        r = self.res.head(escape_docid(docid))
+        r = self.res.request("HEAD", escape_docid(docid))
         if "etag" in r.headers:
             # yeah new couchdb handle that
             return r.headers['etag'].strip('"')
@@ -315,14 +325,14 @@ class Database(object):
         """
         if isinstance(id_or_doc, types.StringType):
             docid = id_or_doc
-            resp = self.res.delete(escape_docid(id_or_doc),
-                                   rev=self.last_rev(id_or_doc))
+            resp = self.res.request("DELETE", escape_docid(id_or_doc),
+                                    rev=self.last_rev(id_or_doc))
         else:
             docid = id_or_doc.get('_id')
             if not docid:
                 raise ValueError('Not valid doc to delete (no doc id)')
             rev = id_or_doc.get('_rev', self.last_rev(docid))
-            resp = self.res.delete(escape_docid(docid), rev=rev)
+            resp = self.res.request("DELETE", escape_docid(docid), rev=rev)
         return resp.json_body
 
     def save_docs(self, docs, all_or_nothing=False, use_uuids=True):
@@ -360,8 +370,8 @@ class Database(object):
             payload["all-or-nothing"] = True
 
         # update docs
-        res = self.res.post('/_bulk_docs', payload=json.dumps(payload),
-                            headers={'Content-Type': 'application/json'})
+        res = self.res.request("POST", '/_bulk_docs', payload=json.dumps(payload),
+                               headers={'Content-Type': 'application/json'})
 
         json_res = res.json_body
         errors = []
@@ -399,8 +409,8 @@ class Database(object):
         else:
             docid = id_or_doc['_id']
 
-        return self.res.get("%s/%s" % (escape_docid(docid), name),
-                            headers=headers)
+        return self.res.request("GET", "%s/%s" % (escape_docid(docid), name),
+                                headers=headers)
 
     def put_attachment(self, doc, content=None, name=None, headers=None):
         """ Add attachement to a document. All attachments are streamed.
@@ -423,8 +433,8 @@ class Database(object):
                 raise InvalidAttachment('You should provid a valid ' +
                                         'attachment name')
         name = quote(name, safe="")
-        res = self.res.put("%s/%s" % (escape_docid(doc['_id']), name),
-                           payload=content, headers=headers, rev=doc['_rev'])
+        res = self.res.request("PUT", "%s/%s" % (escape_docid(doc['_id']), name),
+                               payload=content, headers=headers, rev=doc['_rev'])
         json_res = res.json_body
 
         if 'ok' in json_res:
@@ -440,8 +450,8 @@ class Database(object):
         @return: updated document object
         """
         name = quote(name, safe="")
-        self.res.delete("%s/%s" % (escape_docid(doc['_id']), name),
-                        rev=doc['_rev']).json_body
+        self.res.request("DELETE", "%s/%s" % (escape_docid(doc['_id']), name),
+                         rev=doc['_rev']).json_body
         return doc.update(self.open_doc(doc['_id']))
 
     def view(self, view_name, **params):
@@ -453,11 +463,11 @@ class Database(object):
 
         if "keys" in params:
             keys = params.pop("keys")
-            return self.res.post(path,
-                                 json.dumps({"keys":
-                                             keys}, **params)).json_body
+            return self.res.request("POST", path,
+                                    json.dumps({"keys":
+                                                    keys}, **params)).json_body
 
-        return self.res.get(path, **params).json_body
+        return self.res.request("GET", path, **params).json_body
 
 
 def encode_params(params):
