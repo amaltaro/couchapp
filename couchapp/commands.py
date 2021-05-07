@@ -7,11 +7,8 @@ from __future__ import print_function
 
 import logging
 import os
-import sys
-import urllib
 
 from couchapp import util
-from couchapp.config import Config
 from couchapp.errors import ResourceNotFound, AppError, BulkSaveError
 from couchapp.localdoc import document
 
@@ -143,18 +140,91 @@ def pushdocs(conf, source, dest, *args, **opts):
     return 0
 
 
-if __name__ == "__main__":
-    couchUrl = "http://USER:PASS@localhost:5984"
-    couchDBName = "wmagent_summary"
-    couchAppName = "WMStatsAgent"
-    basePath = "/Users/amaltaro/Pycharm/WMCore/src/couchapps/"
-    print("Installing %s into %s" % (couchAppName, urllib.unquote_plus(couchDBName)))
+def version(conf, *args, **opts):
+    from couchapp import __version__
+    print("Couchapp (version {0})".format(__version__))
+    if opts.get('help', False):
+        usage(conf, *args, **opts)
+    return 0
 
-    couchappConfig = Config()
-    print("AMR couchappConfig: {}".format(couchappConfig))
-    print("AMR new basePath: {}".format(basePath))
+def usage(conf, *args, **opts):
+    if opts.get('version', False):
+        version(conf, *args, **opts)
+    print('Usage: couchapp [OPTIONS] [CMD] [CMDOPTIONS] [ARGS,...]')
 
-    push(couchappConfig, "%s/%s" % (basePath, couchAppName),
-         "%s/%s" % (couchUrl, couchDBName))
-    print("Done")
-    sys.exit(0)
+    print()
+    print('Options:')
+    mainopts = []
+    max_opt_len = len(max(globalopts, key=len))
+    for opt in globalopts:
+        print('\t{opt: <{max_len}}'.format(opt=get_switch_str(opt),
+                                           max_len=max_opt_len))
+        mainopts.append(opt[0])
+
+    print()
+    print('Commands:')
+    commands = sorted(table.keys())
+    max_len = len(max(commands, key=len))
+    for cmd in commands:
+        opts = table[cmd]
+        print('\t{cmd: <{max_len}} {opts}'.format(
+              cmd=cmd, max_len=max_len, opts=opts[2]))
+        # Print each command's option list
+        cmd_options = opts[1]
+        if cmd_options:
+            max_opt = max(cmd_options, key=lambda o: len(get_switch_str(o)))
+            max_opt_len = len(get_switch_str(max_opt))
+            for opt in cmd_options:
+                print('\t\t{opt_str: <{max_len}} {opts}'.format(
+                      opt_str=get_switch_str(opt), max_len=max_opt_len,
+                      opts=opt[3]))
+    return 0
+
+
+def get_switch_str(opt):
+    """
+    Output just the '-r, --rev [VAL]' part of the option string.
+    """
+    if opt[2] is None or opt[2] is True or opt[2] is False:
+        default = ""
+    else:
+        default = "[VAL]"
+    if opt[0]:
+        # has a short and long option
+        return '-{opt[0]}, --{opt[1]} {default}'.format(opt=opt,
+                                                        default=default)
+    else:
+        # only has a long option
+        return '--{opt[1]} {default}'.format(opt=opt, default=default)
+
+
+globalopts = [
+    ('d', 'debug', None, "debug mode"),
+    ('h', 'help', None, "display help and exit"),
+    ('', 'version', None, "display version and exit"),
+    ('v', 'verbose', None, "enable additionnal output"),
+    ('q', 'quiet', None, "don't print any message")
+]
+
+pushopts = [
+    ('', 'no-atomic', False, "send attachments one by one"),
+    ('', 'export', False, "don't do push, just export doc to stdout"),
+    ('', 'output', '', "if export is selected, output to the file"),
+    ('b', 'browse', False, "open the couchapp in the browser"),
+    ('', 'force', False, "force attachments sending")
+]
+
+table = {
+    "push": (
+        push,
+        pushopts + [('', 'docid', '', "set docid")],
+        "[OPTION]... [COUCHAPPDIR] DEST"
+    ),
+    "pushdocs": (
+        pushdocs,
+        pushopts,
+        "[OPTION]... SOURCE DEST"
+    ),
+    "help": (usage, [], ""),
+    "version": (version, [], "")
+}
