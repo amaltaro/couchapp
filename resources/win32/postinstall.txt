@@ -1,5 +1,0 @@
-Welcome to Couchapp for Windows!
----------------------------------
-
-For configuration and usage directions, please read the README.rst
-file that comes with this package.
