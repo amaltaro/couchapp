@@ -7,7 +7,6 @@ import os
 import sys
 
 from setuptools import setup, find_packages
-
 import couchapp
 
 if not hasattr(sys, 'version_info') or sys.version_info < (2, 7, 13, 'final'):
@@ -72,5 +71,6 @@ def main():
     )
     setup(**options)
 
-    if __name__ == "__main__":
-        main()
+
+if __name__ == "__main__":
+    main()
