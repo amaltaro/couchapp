@@ -85,7 +85,6 @@ class CouchdbResource(object):
 
         @param uri: str, full uri to the server.
         """
-        client_opts['response_class'] = CouchdbResponse
         print("AMR initializing CouchdbResource with client_opts: {}".format(client_opts))
 
         self.uri = uri
@@ -128,12 +127,14 @@ class CouchdbResource(object):
         @return: tuple (data, resp), where resp is an `httplib2.Response`
             object and data a python object (often a dict).
         """
-        path = path if path else self.uri
+        if path:
+            path = "{}/{}".format(self.uri, path)
+        else:
+            path = self.uri
         headers = headers or {}
         headers.setdefault('Accept', 'application/json')
         headers.setdefault('User-Agent', USER_AGENT)
 
-        path += "_test1"
         print("Resource uri: {}".format(self.uri))
         print("Resource client_opts: {}".format(self.client_opts))
         print("Request: {} {}".format(method, path))
@@ -251,8 +252,8 @@ class Database(object):
         if wrapper is not None:
             if not callable(wrapper):
                 raise TypeError("wrapper isn't a callable")
-            return wrapper(resp.json_body)
-        return resp.json_body
+            return wrapper(resp)
+        return resp
 
     def save_doc(self, doc, encode=False, force_update=False, **params):
         """ Save a document. It will use the `_id` member of the document
@@ -296,7 +297,7 @@ class Database(object):
             except ResourceConflict:
                 resp = self.res.request("POST", payload=json_doc, **params)
 
-        json_res = resp.json_body
+        json_res = resp
         doc1 = {}
         for a, n in aliases.items():
             if a in json_res:
@@ -324,7 +325,6 @@ class Database(object):
 
         """
         if isinstance(id_or_doc, types.StringType):
-            docid = id_or_doc
             resp = self.res.request("DELETE", escape_docid(id_or_doc),
                                     rev=self.last_rev(id_or_doc))
         else:
@@ -333,7 +333,7 @@ class Database(object):
                 raise ValueError('Not valid doc to delete (no doc id)')
             rev = id_or_doc.get('_rev', self.last_rev(docid))
             resp = self.res.request("DELETE", escape_docid(docid), rev=rev)
-        return resp.json_body
+        return resp
 
     def save_docs(self, docs, all_or_nothing=False, use_uuids=True):
         """ Bulk save. Modify Multiple Documents With a Single Request
@@ -373,7 +373,7 @@ class Database(object):
         res = self.res.request("POST", '/_bulk_docs', payload=json.dumps(payload),
                                headers={'Content-Type': 'application/json'})
 
-        json_res = res.json_body
+        json_res = res
         errors = []
         for i, r in enumerate(json_res):
             if 'error' in r:
@@ -435,7 +435,7 @@ class Database(object):
         name = quote(name, safe="")
         res = self.res.request("PUT", "%s/%s" % (escape_docid(doc['_id']), name),
                                payload=content, headers=headers, rev=doc['_rev'])
-        json_res = res.json_body
+        json_res = res
 
         if 'ok' in json_res:
             return doc.update(self.open_doc(doc['_id']))
@@ -451,7 +451,7 @@ class Database(object):
         """
         name = quote(name, safe="")
         self.res.request("DELETE", "%s/%s" % (escape_docid(doc['_id']), name),
-                         rev=doc['_rev']).json_body
+                         rev=doc['_rev'])
         return doc.update(self.open_doc(doc['_id']))
 
     def view(self, view_name, **params):
@@ -463,11 +463,9 @@ class Database(object):
 
         if "keys" in params:
             keys = params.pop("keys")
-            return self.res.request("POST", path,
-                                    json.dumps({"keys":
-                                                    keys}, **params)).json_body
+            return self.res.request("POST", path, json.dumps({"keys": keys}, **params))
 
-        return self.res.request("GET", path, **params).json_body
+        return self.res.request("GET", path, **params)
 
 
 def encode_params(params):
