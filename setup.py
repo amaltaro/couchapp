@@ -3,23 +3,20 @@
 # This file is part of couchapp released under the Apache 2 license.
 # See the NOTICE for more information.
 
-import couchapp
 import os
 import sys
+
 from setuptools import setup, find_packages
 
-if not sys.version_info[0] == 3:
-    raise SystemExit("Couchapp requires Python3")
+import couchapp
 
-
-executables = []
-setup_requires = []
-extra = {}
+if not hasattr(sys, 'version_info') or sys.version_info < (2, 7, 13, 'final'):
+    raise SystemExit("Couchapp requires Python 2.6 or later.")
 
 
 def get_data_files():
     data_files = [('couchapp',
-        ["LICENSE", "MANIFEST.in", "NOTICE", "README.rst", "THANKS"])]
+                   ["LICENSE", "MANIFEST.in", "NOTICE", "README.rst", "THANKS"])]
     return data_files
 
 
@@ -36,18 +33,11 @@ CLASSIFIERS = ['License :: OSI Approved :: Apache Software License',
                'Intended Audience :: Developers',
                'Intended Audience :: System Administrators',
                'Development Status :: 4 - Beta',
-               'Programming Language :: Python :: 3.8',
-               'Operating System :: OS Independent',
+               'Programming Language :: Python :: 2.7',
+               'Operating System :: POSIX',
                'Topic :: Database',
                'Topic :: Utilities'
                ]
-
-
-def get_scripts():
-    scripts = [os.path.join("resources", "scripts", "couchapp")]
-    return scripts
-
-DATA_FILES = get_data_files()
 
 
 def main():
@@ -58,38 +48,29 @@ def main():
     INSTALL_REQUIRES = ['requests==2.25.1']
 
     options = dict(
-        name='Couchapp',
-        version=couchapp.__version__,
-        url='http://github.com/amaltaro/couchapp/tree/master',
-        license='Apache License 2',
-        #author='Alan Malta',
-        #author_email='alan.malta@cern.ch',
-        description='Standalone CouchDB Application Development Made Simple.',
-        long_description=long_description,
-        keywords='couchdb couchapp',
-        platforms=['unix'],
-        classifiers=CLASSIFIERS,
-        packages=find_packages(),
-        data_files=DATA_FILES,
-        include_package_data=True,
-        zip_safe=False,
-        install_requires=INSTALL_REQUIRES,
-        scripts=get_scripts(),
-        options=dict(
-            py3exe={
-                'packages': [
-                    "subprocess"
-                    ]
+            name='CMSCouchapp',
+            version=couchapp.__version__,
+            url='http://github.com/amaltaro/couchapp',
+            license='Apache License 2',
+            author='Alan Malta',
+            author_email='alan.malta@cern.ch',
+            description='Standalone CouchDB Application Development Made Simple.',
+            long_description=long_description,
+            keywords='couchdb couchapp',
+            platforms=['unix'],
+            classifiers=CLASSIFIERS,
+            packages=find_packages(),
+            data_files=get_data_files(),
+            include_package_data=True,
+            zip_safe=False,
+            install_requires=INSTALL_REQUIRES,
+            entry_points={
+                'console_scripts': [
+                    'couchapp = couchapp.commands:usage'
+                ],
             },
-            bdist_mpkg=dict(
-                zipdist=True,
-                license='LICENSE'
-            ),
-        ),
     )
-    options.update(extra)
     setup(**options)
 
-
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()
