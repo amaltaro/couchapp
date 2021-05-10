@@ -10,7 +10,7 @@ from setuptools import setup, find_packages
 import couchapp
 
 if not hasattr(sys, 'version_info') or sys.version_info < (2, 7, 13, 'final'):
-    raise SystemExit("Couchapp requires Python 2.6 or later.")
+    raise SystemExit("Couchapp requires Python 2.7 or later.")
 
 
 def get_data_files():
@@ -65,7 +65,7 @@ def main():
             install_requires=INSTALL_REQUIRES,
             entry_points={
                 'console_scripts': [
-                    'couchapp = couchapp.commands:usage'
+                    'couchapp = couchapp.commands:main'
                 ],
             },
     )

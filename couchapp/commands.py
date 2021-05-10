@@ -5,11 +5,15 @@
 
 from __future__ import print_function
 
+import argparse
 import logging
 import os
+import sys
 
+from couchapp import __version__
 from couchapp import util
-from couchapp.errors import ResourceNotFound, AppError, BulkSaveError
+from couchapp.config import Config
+from couchapp.errors import ResourceNotFound, BulkSaveError
 from couchapp.localdoc import document
 
 logger = logging.getLogger(__name__)
@@ -22,58 +26,50 @@ def hook(conf, path, hook_type, *args, **kwargs):
                 h.hook(path, hook_type, *args, **kwargs)
 
 
-def push(conf, path, *args, **opts):
-    export = opts.get('export', False)
-    noatomic = opts.get('no_atomic', False)
-    browse = opts.get('browse', False)
-    force = opts.get('force', False)
-    dest = None
-    doc_path = None
-    if len(args) < 2:
-        if export:
-            if path is None and args:
-                doc_path = args[0]
-            else:
-                doc_path = path
-        else:
-            doc_path = path
-            if args:
-                dest = args[0]
-    else:
-        doc_path = os.path.normpath(os.path.join(os.getcwd(), args[0]))
-        dest = args[1]
-    if doc_path is None:
-        raise AppError("You aren't in a couchapp.")
+def push(opts):
+    """
+    This function will build the CouchDB application and push all
+    the documents into CouchDB
+    :param opts: an argparse.Namespace object in the following format:
+        Namespace(couch_uri=None, export=False, force=False, no_atomic=False,
+                  output='blah', path_app=None, version=True)
+    """
+    doc_path = opts.path_app
+    dest = opts.couch_uri
+    export = opts.export
+    output_file = opts.output
+    noatomic = opts.no_atomic
+    browse = False  # FIXME: deprecated! It must be removed
+    force = opts.force
 
-    conf.update(doc_path)
-    print("DEBUG doc_path: {}".format(doc_path))
-    print("DEBUG dest: {}".format(dest))
+    print("Application path: {}".format(doc_path))
+    print("CouchDB destination: {}".format(util.sanitizeURL(dest)['url']))
+    couchapp_config = Config()
+    couchapp_config.update(doc_path)
+
     doc = document(doc_path, create=False, docid=opts.get('docid'))
     print("DEBUG doc: {}".format(doc))
 
     if export:
-        if opts.get('output'):
-            util.write_json(opts.get('output'), doc)
+        if output_file:
+            util.write_json(output_file, doc)
         else:
             print(doc.to_json())
         return 0
 
-    dbs = conf.get_dbs(dest)
+    dbs = couchapp_config.get_dbs(dest)
 
-    hook(conf, doc_path, "pre-push", dbs=dbs)
+    hook(couchapp_config, doc_path, "pre-push", dbs=dbs)
     doc.push(dbs, noatomic, browse, force)
-    hook(conf, doc_path, "post-push", dbs=dbs)
+    hook(couchapp_config, doc_path, "post-push", dbs=dbs)
 
     docspath = os.path.join(doc_path, '_docs')
     if os.path.exists(docspath):
-        pushdocs(conf, docspath, dest, *args, **opts)
+        pushdocs(couchapp_config, docspath, dest, export, noatomic, browse, output_file)
     return 0
 
 
-def pushdocs(conf, source, dest, *args, **opts):
-    export = opts.get('export', False)
-    noatomic = opts.get('no_atomic', False)
-    browse = opts.get('browse', False)
+def pushdocs(conf, source, dest, export, noatomic, browse, output_file):
     dbs = conf.get_dbs(dest)
     docs = []
     for d in os.listdir(source):
@@ -106,8 +102,8 @@ def pushdocs(conf, source, dest, *args, **opts):
                 else:
                     docs1.append(doc)
             jsonobj = {'docs': docs}
-            if opts.get('output'):
-                util.write_json(opts.get('output'), jsonobj)
+            if output_file:
+                util.write_json(output_file, jsonobj)
             else:
                 print(util.json.dumps(jsonobj))
         else:
@@ -140,91 +136,39 @@ def pushdocs(conf, source, dest, *args, **opts):
     return 0
 
 
-def version(conf, *args, **opts):
-    from couchapp import __version__
-    print("Couchapp (version {0})".format(__version__))
-    if opts.get('help', False):
-        usage(conf, *args, **opts)
-    return 0
-
-def usage(conf, *args, **opts):
-    if opts.get('version', False):
-        version(conf, *args, **opts)
-    print('Usage: couchapp [OPTIONS] [CMD] [CMDOPTIONS] [ARGS,...]')
-
-    print()
-    print('Options:')
-    mainopts = []
-    max_opt_len = len(max(globalopts, key=len))
-    for opt in globalopts:
-        print('\t{opt: <{max_len}}'.format(opt=get_switch_str(opt),
-                                           max_len=max_opt_len))
-        mainopts.append(opt[0])
-
-    print()
-    print('Commands:')
-    commands = sorted(table.keys())
-    max_len = len(max(commands, key=len))
-    for cmd in commands:
-        opts = table[cmd]
-        print('\t{cmd: <{max_len}} {opts}'.format(
-              cmd=cmd, max_len=max_len, opts=opts[2]))
-        # Print each command's option list
-        cmd_options = opts[1]
-        if cmd_options:
-            max_opt = max(cmd_options, key=lambda o: len(get_switch_str(o)))
-            max_opt_len = len(get_switch_str(max_opt))
-            for opt in cmd_options:
-                print('\t\t{opt_str: <{max_len}} {opts}'.format(
-                      opt_str=get_switch_str(opt), max_len=max_opt_len,
-                      opts=opt[3]))
-    return 0
+def version():
+    print("Couchapp (version {})\n".format(__version__))
 
 
-def get_switch_str(opt):
+def main():
     """
-    Output just the '-r, --rev [VAL]' part of the option string.
+    Entry door taking the necessary parameters via command line
     """
-    if opt[2] is None or opt[2] is True or opt[2] is False:
-        default = ""
-    else:
-        default = "[VAL]"
-    if opt[0]:
-        # has a short and long option
-        return '-{opt[0]}, --{opt[1]} {default}'.format(opt=opt,
-                                                        default=default)
-    else:
-        # only has a long option
-        return '--{opt[1]} {default}'.format(opt=opt, default=default)
+    parser = argparse.ArgumentParser(prog='couchapp', description="CMSCouchApp Tool")
+    parser.add_argument('-p', '--path_app', help='Absolute path to the couch app to be installed')
+    parser.add_argument('-c', '--couch_uri', help='Target couch URI with the database name')
+    parser.add_argument('-v', '--version', action="store_true", help='Display version and exit')
+    # push options
+    parser.add_argument('-n', '--no-atomic', action="store_true",
+                        help='Send attachments one by one')
+    parser.add_argument('-e', '--export', action="store_true",
+                        help='Do not push, just export doc to stdout')
+    parser.add_argument('-o', '--output', help='If --export is enabled, output to the file')
+    parser.add_argument('-f', '--force', action="store_true",
+                        help='Force attachments sending')
+    args = parser.parse_args()
+    if args.version:
+        version()
+
+    if not args.path_app and not args.couch_uri:
+        print("ERROR: `path_app` and `couch_uri` parameters are mandatory")
+        parser.print_help()
+        sys.exit(1)
+
+    # Now actually push the Apps
+    push(args)
+    sys.exit(0)
 
 
-globalopts = [
-    ('d', 'debug', None, "debug mode"),
-    ('h', 'help', None, "display help and exit"),
-    ('', 'version', None, "display version and exit"),
-    ('v', 'verbose', None, "enable additionnal output"),
-    ('q', 'quiet', None, "don't print any message")
-]
-
-pushopts = [
-    ('', 'no-atomic', False, "send attachments one by one"),
-    ('', 'export', False, "don't do push, just export doc to stdout"),
-    ('', 'output', '', "if export is selected, output to the file"),
-    ('b', 'browse', False, "open the couchapp in the browser"),
-    ('', 'force', False, "force attachments sending")
-]
-
-table = {
-    "push": (
-        push,
-        pushopts + [('', 'docid', '', "set docid")],
-        "[OPTION]... [COUCHAPPDIR] DEST"
-    ),
-    "pushdocs": (
-        pushdocs,
-        pushopts,
-        "[OPTION]... SOURCE DEST"
-    ),
-    "help": (usage, [], ""),
-    "version": (version, [], "")
-}
+if __name__ == "__main__":
+    main()

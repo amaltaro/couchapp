@@ -8,18 +8,22 @@ from __future__ import with_statement
 import codecs
 import imp
 import inspect
+import json
 import logging
 import os
 import re
 import string
 import subprocess
-
 from hashlib import md5
+from importlib import import_module
+
+try:
+    from urlparse import urlparse, urlunparse
+except ImportError:
+    # PY3
+    from urllib.parse import urlparse, urlunparse
 
 from couchapp.errors import AppError, ScriptError
-
-import json
-from importlib import import_module
 
 logger = logging.getLogger(__name__)
 
@@ -423,3 +427,30 @@ def setup_dirs(path_list, *args, **kwargs):
     '''
     for p in path_list:
         setup_dir(p, *args, **kwargs)
+
+
+def sanitizeURL(url):
+    """
+    Take the url with/without username and password and return sanitized url,
+    username and password in dict format
+    WANNING: Don't use ':' in username or password.
+    """
+    endpoint_components = urlparse(url)
+    # Cleanly pull out the user/password from the url
+    if endpoint_components.port:
+        netloc = '%s:%s' % (endpoint_components.hostname,
+                            endpoint_components.port)
+    else:
+        netloc = endpoint_components.hostname
+
+    # Build a URL without the username/password information
+    url = urlunparse(
+        [endpoint_components.scheme,
+         netloc,
+         endpoint_components.path,
+         endpoint_components.params,
+         endpoint_components.query,
+         endpoint_components.fragment])
+
+    return {'url': url, 'username': endpoint_components.username,
+            'password': endpoint_components.password}
