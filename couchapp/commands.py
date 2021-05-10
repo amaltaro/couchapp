@@ -47,7 +47,7 @@ def push(path_app, url_dest, opts):
     couchapp_config = Config()
     couchapp_config.update(path_app)
 
-    doc = document(path_app, create=False, docid=opts.get('docid'))
+    doc = document(path_app, create=False)
     print("DEBUG doc: {}".format(doc))
 
     if export:
@@ -145,6 +145,7 @@ def main():
     Entry door taking the necessary parameters via command line
     """
     parser = argparse.ArgumentParser(prog='couchapp', description="CMSCouchApp Tool")
+    parser.add_argument('push', default="push")
     parser.add_argument('-p', '--path_app', help='Absolute path to the couch app to be installed')
     parser.add_argument('-c', '--couch_uri', help='Target couch URI with the database name')
     parser.add_argument('-v', '--version', action="store_true", help='Display version and exit')
