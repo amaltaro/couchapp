@@ -26,28 +26,28 @@ def hook(conf, path, hook_type, *args, **kwargs):
                 h.hook(path, hook_type, *args, **kwargs)
 
 
-def push(opts):
+def push(path_app, url_dest, **opts):
     """
     This function will build the CouchDB application and push all
     the documents into CouchDB
+    :param path_app: string with the absolute path to the CouchApp source code
+    :param url_dest: string with the CouchDB URL and database name destination
     :param opts: an argparse.Namespace object in the following format:
         Namespace(couch_uri=None, export=False, force=False, no_atomic=False,
                   output='blah', path_app=None, version=True)
     """
-    doc_path = opts.path_app
-    dest = opts.couch_uri
     export = opts.export
     output_file = opts.output
     noatomic = opts.no_atomic
     browse = False  # FIXME: deprecated! It must be removed
     force = opts.force
 
-    print("Application path: {}".format(doc_path))
-    print("CouchDB destination: {}".format(util.sanitizeURL(dest)['url']))
+    print("Application path: {}".format(path_app))
+    print("CouchDB destination: {}".format(util.sanitizeURL(url_dest)['url']))
     couchapp_config = Config()
-    couchapp_config.update(doc_path)
+    couchapp_config.update(path_app)
 
-    doc = document(doc_path, create=False, docid=opts.get('docid'))
+    doc = document(path_app, create=False, docid=opts.get('docid'))
     print("DEBUG doc: {}".format(doc))
 
     if export:
@@ -57,15 +57,15 @@ def push(opts):
             print(doc.to_json())
         return 0
 
-    dbs = couchapp_config.get_dbs(dest)
+    dbs = couchapp_config.get_dbs(url_dest)
 
-    hook(couchapp_config, doc_path, "pre-push", dbs=dbs)
+    hook(couchapp_config, path_app, "pre-push", dbs=dbs)
     doc.push(dbs, noatomic, browse, force)
-    hook(couchapp_config, doc_path, "post-push", dbs=dbs)
+    hook(couchapp_config, path_app, "post-push", dbs=dbs)
 
-    docspath = os.path.join(doc_path, '_docs')
+    docspath = os.path.join(path_app, '_docs')
     if os.path.exists(docspath):
-        pushdocs(couchapp_config, docspath, dest, export, noatomic, browse, output_file)
+        pushdocs(couchapp_config, docspath, url_dest, export, noatomic, browse, output_file)
     return 0
 
 
@@ -166,7 +166,7 @@ def main():
         sys.exit(1)
 
     # Now actually push the Apps
-    push(args)
+    push(args.path_app, args.couch_uri, args)
     sys.exit(0)
 
 
