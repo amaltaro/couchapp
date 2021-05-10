@@ -26,7 +26,7 @@ def hook(conf, path, hook_type, *args, **kwargs):
                 h.hook(path, hook_type, *args, **kwargs)
 
 
-def push(path_app, url_dest, **opts):
+def push(path_app, url_dest, opts):
     """
     This function will build the CouchDB application and push all
     the documents into CouchDB
