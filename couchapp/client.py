@@ -85,8 +85,6 @@ class CouchdbResource(object):
 
         @param uri: str, full uri to the server.
         """
-        print("AMR initializing CouchdbResource with client_opts: {}".format(client_opts))
-
         self.uri = uri
         # FIXME: dangerous if the database name is not part of the URI
         # self.database = uri.rsplit("/", 1)[1]
@@ -136,7 +134,6 @@ class CouchdbResource(object):
         headers.setdefault('User-Agent', USER_AGENT)
 
         print("Resource uri: {}".format(self.uri))
-        print("Resource client_opts: {}".format(self.client_opts))
         print("Request: {} {}".format(method, path))
         print("Payload: {}".format(str(payload)))
         print("Headers: {}".format(str(headers)))

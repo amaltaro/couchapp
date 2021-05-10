@@ -48,7 +48,6 @@ def push(path_app, url_dest, opts):
     couchapp_config.update(path_app)
 
     doc = document(path_app, create=False)
-    print("DEBUG doc: {}".format(doc))
 
     if export:
         if output_file:
