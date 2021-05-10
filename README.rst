@@ -13,6 +13,7 @@ In short, this App can be used to construct and push your CouchDB application, b
 
 Installation
 ------------
+**NOTE**: CMSCouchApp version 1.2.2 and 1.2.5 are broken and should not be used.
 
 Couchapp requires Python3 (tested with Python 3.8).
 Couchapp is most easily installed using the latest versions of the standard
