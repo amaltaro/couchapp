@@ -33,15 +33,16 @@ def push(path_app, url_dest, opts=None):
     :param path_app: string with the absolute path to the CouchApp source code
     :param url_dest: string with the CouchDB URL and database name destination
     :param opts: an argparse.Namespace object in the following format:
-        Namespace(couch_uri=None, export=False, force=False, no_atomic=False,
-                  output='blah', path_app=None, version=True)
+        Namespace(export=False, force=False, no_atomic=False, output='blah', version=True)
     """
+    browse = False  # FIXME: deprecated! It must be removed
     if opts:
         export = opts.export
         output_file = opts.output
         noatomic = opts.no_atomic
-        browse = False  # FIXME: deprecated! It must be removed
         force = opts.force
+    else:
+        export, output_file, noatomic, force = False, None, False, False
 
     app_name = path_app.rsplit("/", 1)[1]
     safe_url = util.sanitizeURL(url_dest)['url']
