@@ -45,14 +45,14 @@ class LocalDoc(object):
             self.create()
 
     def _load_ignores(self):
-        '''
+        """
         load ignores from ``.couchappignore``
 
         The ``.couchappignore`` file is a json file containing a
         list of regexps for things to skip
 
         :return: a list of file name or ``[]`` for empty
-        '''
+        """
         path = os.path.join(self.docdir, '.couchappignore')
         if not os.path.exists(path):
             return []
@@ -82,12 +82,12 @@ class LocalDoc(object):
         return util.json.dumps(self.doc())
 
     def create(self):
-        '''
+        """
         Init a dir as a couchapp.
 
         Only create ``.couchapprc`` and ``.couchappignore``.
         Do nothing if ``.couchapprc`` exists.
-        '''
+        """
         util.setup_dir(self.docdir, require_empty=False)
 
         rcfile = os.path.join(self.docdir, '.couchapprc')
@@ -252,7 +252,7 @@ class LocalDoc(object):
         return self._doc
 
     def check_ignore(self, item):
-        '''
+        """
         :param item: the relative path which starts from ``self.docdir``
 
         Given a path and a ignore list,
@@ -261,7 +261,7 @@ class LocalDoc(object):
             * ``foo/bar/baz.json`` vs ``bar`` -> False
             * ``bar/baz.json`` vs ``bar`` -> True, then return
             * ``baz.json`` vs ``bar`` -> not checked
-        '''
+        """
         item = os.path.normpath(item)
 
         for pattern in self.ignores:
@@ -276,13 +276,13 @@ class LocalDoc(object):
 
     @classmethod
     def _combine_path(cls, p):
-        '''
+        """
         >>> tuple(LocalDoc._combine_path('foo/bar/qaz'))
         ('foo', 'foo/bar', 'foo/bar/qaz', 'bar', 'bar/qaz', 'qaz')
 
         >>> tuple(LocalDoc._combine_path('/foo/bar/qaz'))
         ('/foo', '/foo/bar', '/foo/bar/qaz', 'bar', 'bar/qaz', 'qaz')
-        '''
+        """
         ls = util.split_path(p)
         while ls:
             for i in cls._combine_dir(copy(ls)):
@@ -291,10 +291,10 @@ class LocalDoc(object):
 
     @staticmethod
     def _combine_dir(ls):
-        '''
+        """
         >>> tuple(LocalDoc._combine_dir(['foo', 'bar', 'qaz']))
         ('foo', 'foo/bar', 'foo/bar/qaz')
-        '''
+        """
         ret = tuple()
         while ls:
             ret += (ls.pop(0),)
@@ -355,13 +355,13 @@ class LocalDoc(object):
 
     @staticmethod
     def _meta_to_fields(fields, content):
-        '''
+        """
         Convert ``couchapp/`` or ``couchapp.json`` to fields
 
         This is a private subroutine for ``dir_to_fields``
 
         :return: fields, content
-        '''
+        """
         if not isinstance(content, dict):
             content = {'meta': content}
 

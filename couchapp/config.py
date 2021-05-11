@@ -83,9 +83,9 @@ class Config(object):
                 default=json_conf)
 
     def update(self, path):
-        '''
+        """
         Given a couchapp path, and load the configs from it.
-        '''
+        """
         self.conf = self.global_conf.copy()
         self.local_conf.update(self.load_local(path))
         self.conf.update(self.local_conf)
@@ -116,19 +116,19 @@ class Config(object):
         return (key in self.conf)
 
     def __iter__(self):
-        '''
+        """
         We will get the key-value pair from the dict: self.conf
-        '''
+        """
         for k, v in self.conf.items():
             yield (k, v)
 
     @property
     def extensions(self):
-        '''
+        """
         load extensions from conf
 
         :return: list of extension modules
-        '''
+        """
         return [util.load_py(uri, self)
                 for uri in self.conf.get('extensions', tuple())]
 
@@ -141,9 +141,9 @@ class Config(object):
 
     # TODO: add oauth management
     def get_dbs(self, db_string=None):
-        '''
+        """
         :type db_string: str
-        '''
+        """
         db_string = db_string or ''
         env = self.conf.get('env', {})
         is_full_uri = any(map(db_string.startswith,

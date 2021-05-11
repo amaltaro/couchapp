@@ -68,9 +68,9 @@ def rcpath():
 
 
 def findcouchapp(p):
-    '''
+    """
     Find couchapp top level dir from sub dir
-    '''
+    """
     while not os.path.isfile(os.path.join(p, ".couchapprc")):
         oldp, p = p, os.path.dirname(p)
         if p == oldp:
@@ -79,12 +79,12 @@ def findcouchapp(p):
 
 
 def discover_apps(path):
-    '''
+    """
     Given a path as parent dir, depth=1, return a list of the couchapps.
     It will ignore all hidden dir.
 
     :type path: str
-    '''
+    """
     apps = []
 
     for item in os.listdir(path):
@@ -98,12 +98,12 @@ def discover_apps(path):
 
 
 def iscouchapp(path):
-    '''
+    """
     A couchapp MUSH have ``.couchapprc``
 
     :type path: str
     :return: bool
-    '''
+    """
     return os.path.isfile(os.path.join(path, '.couchapprc'))
 
 
@@ -357,15 +357,15 @@ RE_COMMENT = re.compile(
 
 
 def remove_comments(text):
-    '''
+    """
     remove comments string in json text
 
     :param str text: the json text
-    '''
+    """
     def replace(m):
-        '''
+        """
         :param m: the regex match object
-        '''
+        """
         s = m.group(0)
         if s.startswith('/'):
             return ''
@@ -374,13 +374,13 @@ def remove_comments(text):
 
 
 def sh_open(cmd, bufsize=0):
-    '''
+    """
     run shell command with :mod:`subprocess`
 
     :param str cmd: the command string
     :param int bufsize: the bufsize passed to ``subprocess.Popen``
     :return:  a tuple contains (stdout, stderr)
-    '''
+    """
     closefds = (os.name == 'posix')
 
     p = subprocess.Popen(cmd, shell=True, bufsize=bufsize,
@@ -399,10 +399,10 @@ def is_empty_dir(path):
 
 
 def setup_dir(path, require_empty=True):
-    '''
+    """
     If dir exists, check it empty or not.
     If dir does not exist, make one.
-    '''
+    """
     isdir = os.path.isdir(path)
 
     if isdir and not require_empty:
@@ -418,13 +418,13 @@ def setup_dir(path, require_empty=True):
 
 
 def setup_dirs(path_list, *args, **kwargs):
-    '''
+    """
     setup a list of dirs.
 
     :param path_list: iterable
 
     Other arguments please refer to ``setup_dir``.
-    '''
+    """
     for p in path_list:
         setup_dir(p, *args, **kwargs)
 
