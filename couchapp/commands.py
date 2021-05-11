@@ -42,8 +42,11 @@ def push(path_app, url_dest, opts):
     browse = False  # FIXME: deprecated! It must be removed
     force = opts.force
 
-    print("Application path: {}".format(path_app))
-    print("CouchDB destination: {}".format(util.sanitizeURL(url_dest)['url']))
+    app_name = path_app.rsplit("/", 1)[1]
+    safe_url = util.sanitizeURL(url_dest)['url']
+    print("Installing {} app into database: {}".format(app_name, safe_url))
+    logger.debug("Application path: %s", path_app)
+    logger.debug("CouchDB destination: %s", safe_url)
     couchapp_config = Config()
     couchapp_config.update(path_app)
 

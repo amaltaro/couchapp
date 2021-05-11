@@ -49,11 +49,11 @@ class CouchdbResponse(requests.Response):
         or raise an exception if it failed
         """
         if self.response.ok:
-            print("Response status_code: {}".format(self.response.status_code))
-            print("Response text: {}".format(self.response.text))
-            print("Response headers: {}".format(self.response.headers))
-            print("Response encoding: {}".format(self.response.encoding))
-            print("Response content: {}".format(self.response.content))
+            logger.debug("Response status_code: %s", self.response.status_code)
+            logger.debug("Response text: %s", self.response.text)
+            logger.debug("Response headers: %s", self.response.headers)
+            logger.debug("Response encoding: %s", self.response.encoding)
+            logger.debug("Response content: %s", self.response.content)
             self.response.close()
             try:
                 return self.response.json()
@@ -133,18 +133,17 @@ class CouchdbResource(object):
         headers.setdefault('Accept', 'application/json')
         headers.setdefault('User-Agent', USER_AGENT)
 
-        print("Resource uri: {}".format(self.uri))
-        print("Request: {} {}".format(method, path))
-        print("Payload: {}".format(str(payload)))
-        print("Headers: {}".format(str(headers)))
-        print("Params: {}".format(str(params)))
+        logger.debug("Resource uri: %s", self.uri)
+        logger.debug("Request: %s %s", method, path)
+        logger.debug("Payload: %s", str(payload))
+        logger.debug("Headers: %s", str(headers))
+        logger.debug("Params: %s", str(params))
 
         try:
             resp = requests.request(method, url=path, data=payload,
                                     headers=headers, **params)
         except Exception as e:
-            print("Error was: {}".format(e))
-            print("Error dir: {}".format(dir(e)))
+            logger.exception("Error making a CouchdbResource call. Details: %s", e)
             raise RequestFailed('unknown error [%s]', str(e))
         return CouchdbResponse(resp).json_body
 
