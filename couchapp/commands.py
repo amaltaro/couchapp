@@ -26,7 +26,7 @@ def hook(conf, path, hook_type, *args, **kwargs):
                 h.hook(path, hook_type, *args, **kwargs)
 
 
-def push(path_app, url_dest, opts):
+def push(path_app, url_dest, opts=None):
     """
     This function will build the CouchDB application and push all
     the documents into CouchDB
@@ -36,11 +36,12 @@ def push(path_app, url_dest, opts):
         Namespace(couch_uri=None, export=False, force=False, no_atomic=False,
                   output='blah', path_app=None, version=True)
     """
-    export = opts.export
-    output_file = opts.output
-    noatomic = opts.no_atomic
-    browse = False  # FIXME: deprecated! It must be removed
-    force = opts.force
+    if opts:
+        export = opts.export
+        output_file = opts.output
+        noatomic = opts.no_atomic
+        browse = False  # FIXME: deprecated! It must be removed
+        force = opts.force
 
     app_name = path_app.rsplit("/", 1)[1]
     safe_url = util.sanitizeURL(url_dest)['url']

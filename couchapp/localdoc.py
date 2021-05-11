@@ -381,9 +381,9 @@ class LocalDoc(object):
 
     @staticmethod
     def _encode_content(name, path):
-        '''
+        """
         This is a private subroutine for ``dir_to_fields``
-        '''
+        """
         if name.endswith('.json'):
             try:
                 return util.read_json(path, raise_on_error=True)
@@ -403,8 +403,9 @@ class LocalDoc(object):
                 logger.warning("plan B didn't work, %s is a binary", path)
                 logger.warning("use plan C: encode to base64")
                 content = ("base64-encoded;%s" % base64.b64encode(content))
-
-        return content
+        # Alan: make sure to remove newline at the end of the string, otherwise it
+        # breaks the design documents
+        return content.rstrip("\n")
 
     def _process_attachments(self, path, vendor=None):
         """
