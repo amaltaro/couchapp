@@ -13,8 +13,6 @@ In short, this App can be used to construct and push your CouchDB application, b
 
 Installation
 ------------
-**NOTE**: CMSCouchApp version 1.2.2 and 1.2.5 are broken and should not be used.
-
 Couchapp requires Python3 (tested with Python 3.8).
 Couchapp is most easily installed using the latest versions of the standard
 python packaging tools, ``setuptools`` and ``pip``.
@@ -41,3 +39,9 @@ Note: Some installations need to use *sudo* command before each command
 line.
 
 Note: On debian system don't forget to install python-dev.
+
+Release history
+----------------
+For python2, please use version ``1.2.9``, others between ``1.2.2`` and ``1.2.7`` are not totally functional.
+
+Python3 support will be added starting in ``1.3.0``, where python2 support will be dropped.
