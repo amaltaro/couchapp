@@ -3,22 +3,16 @@
 # This file is part of couchapp released under the Apache 2 license.
 # See the NOTICE for more information.
 
-from __future__ import with_statement
 
 import base64
 import itertools
 import json
 import logging
 import re
-import types
 
 import requests
 
-try:
-    from urllib import quote
-except ImportError:
-    # PY3
-    from urllib.parse import quote
+from urllib.parse import quote
 from couchapp import __version__
 from couchapp.errors import ResourceNotFound, ResourceConflict, \
     PreconditionFailed, RequestFailed, BulkSaveError, Unauthorized, \
@@ -172,7 +166,7 @@ class Uuids(object):
         self._uuids = []
         self.max_uuids = max_uuids
 
-    def next(self):
+    def __next__(self):
         if not self._uuids:
             self.fetch_uuids()
         self._uuids, res = self._uuids[:-1], self._uuids[-1]
@@ -284,14 +278,14 @@ class Database(object):
         else:
             json_doc = json.dumps(doc)
             try:
-                doc['_id'] = self.uuids.next()
+                doc['_id'] = next(self.uuids)
                 resp = self.res.request("PUT", doc['_id'], payload=json_doc, **params)
             except ResourceConflict:
                 resp = self.res.request("POST", payload=json_doc, **params)
 
         json_res = resp
         doc1 = {}
-        for a, n in aliases.items():
+        for a, n in list(aliases.items()):
             if a in json_res:
                 doc1[n] = json_res[a]
         doc.update(doc1)
@@ -316,7 +310,7 @@ class Database(object):
         @param id_or_doc: docid string or document dict
 
         """
-        if isinstance(id_or_doc, types.StringType):
+        if isinstance(id_or_doc, (bytes, str)):
             resp = self.res.request("DELETE", escape_docid(id_or_doc),
                                     rev=self.last_rev(id_or_doc))
         else:
@@ -353,7 +347,7 @@ class Database(object):
                     noids = list(g)
 
             for doc in noids:
-                nextid = self.uuids.next()
+                nextid = next(self.uuids)
                 if nextid:
                     doc['_id'] = nextid
 
@@ -396,7 +390,7 @@ class Database(object):
 
         @return: `couchdbkit.resource.CouchDBResponse` object
         """
-        if isinstance(id_or_doc, basestring):
+        if isinstance(id_or_doc, (str, bytes)):
             docid = id_or_doc
         else:
             docid = id_or_doc['_id']
@@ -464,11 +458,11 @@ def encode_params(params):
     """ encode parameters in json if needed """
     _params = {}
     if params:
-        for name, value in params.items():
+        for name, value in list(params.items()):
             if value is None:
                 continue
             if name in ('key', 'startkey', 'endkey') \
-                    or not isinstance(value, basestring):
+                    or not isinstance(value, str):
                 value = json.dumps(value).encode('utf-8')
             _params[name] = value
     return _params
@@ -485,10 +479,10 @@ def escape_docid(docid):
 
 
 def encode_attachments(attachments):
-    for k, v in attachments.iteritems():
+    re_sp = re.compile('\s')
+    for k, v in attachments.items():
         if v.get('stub', False):
             continue
         else:
-            re_sp = re.compile('\s')
             v['data'] = re_sp.sub('', base64.b64encode(v['data']))
     return attachments

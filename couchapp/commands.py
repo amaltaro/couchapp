@@ -3,7 +3,7 @@
 # This file is part of couchapp released under the Apache 2 license.
 # See the NOTICE for more information.
 
-from __future__ import print_function
+
 
 import argparse
 import logging
@@ -126,7 +126,7 @@ def pushdocs(conf, source, dest, export, noatomic, browse, output_file):
                         docs1.append(newdoc)
                 try:
                     db.save_docs(docs1)
-                except BulkSaveError, e:
+                except BulkSaveError as e:
                     # resolve conflicts
                     docs1 = []
                     for doc in e.errors:

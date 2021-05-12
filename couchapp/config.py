@@ -46,7 +46,7 @@ class Config(object):
         :type path: str or iterable
         """
         conf = deepcopy(default) if default is not None else {}
-        paths = [path] if isinstance(path, basestring) else path
+        paths = [path] if isinstance(path, str) else path
 
         for p in paths:
             if not os.path.isfile(p):
@@ -119,7 +119,7 @@ class Config(object):
         """
         We will get the key-value pair from the dict: self.conf
         """
-        for k, v in self.conf.items():
+        for k, v in list(self.conf.items()):
             yield (k, v)
 
     @property
@@ -136,7 +136,7 @@ class Config(object):
     def hooks(self):
         return dict(
                 (hooktype, [util.hook_uri(uri, self) for uri in uris])
-                for hooktype, uris in self.conf.get('hooks', {}).items()
+                for hooktype, uris in list(self.conf.get('hooks', {}).items())
         )
 
     # TODO: add oauth management
@@ -163,7 +163,7 @@ class Config(object):
 
             del conf_uri, default_uri
 
-        if isinstance(dburls, basestring):
+        if isinstance(dburls, str):
             dburls = [dburls]
 
         use_proxy = any(k in os.environ for k in ('http_proxy', 'https_proxy'))

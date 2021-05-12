@@ -3,7 +3,7 @@
 # This file is part of couchapp released under the Apache 2 license.
 # See the NOTICE for more information.
 
-from __future__ import with_statement
+
 
 import base64
 import logging
@@ -11,7 +11,7 @@ import mimetypes
 import os
 import os.path
 import re
-import urlparse
+import urllib.parse
 from copy import copy
 from itertools import chain
 
@@ -125,8 +125,8 @@ class LocalDoc(object):
             indexurl = self.index(db.raw_uri, doc['couchapp'].get('index'))
             if indexurl and not noindex:
                 if "@" in indexurl:
-                    u = urlparse.urlparse(indexurl)
-                    indexurl = urlparse.urlunparse((u.scheme,
+                    u = urllib.parse.urlparse(indexurl)
+                    indexurl = urllib.parse.urlunparse((u.scheme,
                                                     u.netloc.split("@")[-1],
                                                     u.path, u.params, u.query,
                                                     u.fragment))
@@ -139,7 +139,7 @@ class LocalDoc(object):
             re_sp = re.compile('\s')
             att = {"data": re_sp.sub('', base64.b64encode(f.read())),
                    "content_type":
-                       ';'.join(filter(None, mimetypes.guess_type(name)))}
+                       ';'.join([_f for _f in mimetypes.guess_type(name) if _f])}
 
         return att
 
@@ -184,7 +184,7 @@ class LocalDoc(object):
                 attachments[name] = self.attachment_stub(name, filepath)
 
         if old_signatures:
-            for name, signature in old_signatures.items():
+            for name, signature in list(old_signatures.items()):
                 cursign = signatures.get(name)
                 if not cursign:
                     logger.debug("detach %s ", name)
@@ -236,7 +236,7 @@ class LocalDoc(object):
                             name = name[:-1]
                         dmanifest[name] = i
 
-                for vname, value in self._doc['views'].iteritems():
+                for vname, value in self._doc['views'].items():
                     if value and isinstance(value, dict):
                         views[vname] = value
                     else:

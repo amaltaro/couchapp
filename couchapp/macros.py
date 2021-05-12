@@ -20,23 +20,23 @@ def package_shows(doc, funcs, app_dir, objs):
 
 
 def package_views(doc, views, app_dir, objs):
-    for view, funcs in views.iteritems():
+    for view, funcs in views.items():
         if hasattr(funcs, "items"):
             apply_lib(doc, funcs, app_dir, objs)
 
 
 def apply_lib(doc, funcs, app_dir, objs):
-    for k, v in funcs.items():
-        if not isinstance(v, basestring):
+    for k, v in list(funcs.items()):
+        if not isinstance(v, str):
             continue
         else:
-            logger.debug("process function: %s" % k)
+            logger.debug("process function: %s", k)
             old_v = v
             try:
                 funcs[k] = run_json_macros(doc,
                                            run_code_macros(v, app_dir),
                                            app_dir)
-            except ValueError, e:
+            except ValueError as e:
                 raise MacroError("Error running !code or !json on " +
                                  "function \"%s\": %s" % (k, e))
             if old_v != funcs[k]:
@@ -50,13 +50,13 @@ def run_code_macros(f_string, app_dir):
         library = ''
         filenum = 0
         for filename in glob.iglob(path):
-            logger.debug("process code macro: %s" % filename)
+            logger.debug("process code macro: %s", filename)
             try:
                 cnt = util.read(filename)
                 if cnt.find("!code") >= 0:
                     cnt = run_code_macros(cnt, app_dir)
                 library += cnt
-            except IOError, e:
+            except IOError as e:
                 raise MacroError(str(e))
             filenum += 1
 
@@ -79,14 +79,14 @@ def run_json_macros(doc, f_string, app_dir):
             path = os.path.join(app_dir, mo.group(2).strip())
             filenum = 0
             for filename in glob.iglob(path):
-                logger.debug("process json macro: %s" % filename)
+                logger.debug("process json macro: %s", filename)
                 library = ''
                 try:
                     if filename.endswith('.json'):
                         library = util.read_json(filename)
                     else:
                         library = util.read(filename)
-                except IOError, e:
+                except IOError as e:
                     raise MacroError(str(e))
                 filenum += 1
                 current_file = filename.split(app_dir)[1]
@@ -103,15 +103,14 @@ def run_json_macros(doc, f_string, app_dir):
                 raise MacroError("Processing code: No file matching '%s'" %
                                  mo.group(2))
         else:
-            logger.debug("process json macro: %s" % mo.group(2))
+            logger.debug("process json macro: %s", mo.group(2))
             fields = mo.group(2).strip().split('.')
             library = doc
             count = len(fields)
             include_to = included
             for i, field in enumerate(fields):
                 if not field in library:
-                    logger.warning("process json macro: unknown json "
-                                   + "source: %s" % mo.group(2))
+                    logger.warning("process json macro: unknown json. Source: %s", mo.group(2))
                     break
                 library = library[field]
                 if i+1 < count:
@@ -131,7 +130,7 @@ def run_json_macros(doc, f_string, app_dir):
     if not included:
         return f_string
 
-    for k, v in included.iteritems():
+    for k, v in included.items():
         varstrings.append("var %s = %s;" %
                           (k, util.json.dumps(v).encode('utf-8')))
 

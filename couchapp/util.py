@@ -3,25 +3,17 @@
 # This file is part of couchapp released under the Apache 2 license.
 # See the NOTICE for more information.
 
-from __future__ import with_statement
-
+import string
 import codecs
-import imp
 import inspect
 import json
 import logging
 import os
 import re
-import string
 import subprocess
 from hashlib import md5
-from importlib import import_module
-
-try:
-    from urlparse import urlparse, urlunparse
-except ImportError:
-    # PY3
-    from urllib.parse import urlparse, urlunparse
+from importlib import import_module, util
+from urllib.parse import urlparse, urlunparse
 
 from couchapp.errors import AppError, ScriptError
 
@@ -130,9 +122,7 @@ def get_appname(docid):
 
 def to_bytestring(s):
     """ convert to bytestring an unicode """
-    if not isinstance(s, basestring):
-        return s
-    if isinstance(s, unicode):
+    if isinstance(s, str):
         return s.encode('utf-8')
     else:
         return s
@@ -209,8 +199,8 @@ def sign(fpath):
                     if not data:
                         break
                     m.update(data)
-            except IOError, msg:
-                logger.error('%s: I/O error: %s\n' % (fpath, msg))
+            except IOError as msg:
+                logger.error('%s: I/O error: %s\n', fpath, msg)
                 return 1
             return m.hexdigest()
     return ''
@@ -269,8 +259,8 @@ def read_json(fname, use_environment=False, raise_on_error=False):
     """
     try:
         data = read(fname, force_read=True)
-    except IOError, e:
-        if e[0] == 2:
+    except IOError as e:
+        if e.args[0] == 2:
             return {}
         raise
 
@@ -280,7 +270,7 @@ def read_json(fname, use_environment=False, raise_on_error=False):
     try:
         data = json.loads(data)
     except ValueError:
-        logger.error("Json is invalid, can't load %s" % fname)
+        logger.error("Json is invalid, can't load %s", fname)
         if not raise_on_error:
             return {}
         raise
@@ -302,9 +292,13 @@ def expandpath(path):
 
 
 def load_py(uri, cfg):
+    # while porting to python3, I found this snippet for loading a python module
+    # https://github.com/epfl-scitas/spack/blob/af6a3556c4c861148b8e1adc2637685932f4b08a/lib/spack/llnl/util/lang.py#L595-L622
     if os.path.exists(uri):
         name, ext = os.path.splitext(os.path.basename(uri))
-        script = imp.load_source(name, uri)
+        spec = util.spec_from_file_location(name, uri)
+        script = util.module_from_spec(spec)
+        spec.loader.exec_module(script)
     else:
         if ":" in uri:
             parts = uri.rsplit(":", 1)
