@@ -44,7 +44,8 @@ Note: On debian system don't forget to install python-dev.
 
 Releases
 --------
-For **python2**, the recommended version is: ``1.2.10``
+For **python2**, the recommended version is: ``1.2.10``.
+
 For **Python3**, a new release will be made available very soon, starting with ``1.3.0``. Note that once it is released, python2 support will be dropped.
 
 Last but not least, releases from ``1.2.2`` to ``1.2.7`` are not fully functional and should not be used.
@@ -53,12 +54,11 @@ Pushing your CouchApp
 ---------------------
 Once you have installed the CMSCouchapp library, you can install your CouchDB application with a command like:
 
-```
-couchapp push -p /data/TestCouchApp -c http://localhost:5984/test_database_name
-```
+``couchapp push -p /data/TestCouchApp -c http://localhost:5984/test_database_name``
+
 
 or if you want to simply visualize how the design document would look like, in a dry-run mode, you could run:
-```
-couchapp push -p /data/TestCouchApp -c http://localhost:5984/test_database_name --export
-```
+
+``couchapp push -p /data/TestCouchApp -c http://localhost:5984/test_database_name --export``
+
 which would dump the design document into stdout.

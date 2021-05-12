@@ -32,7 +32,7 @@ CLASSIFIERS = ['License :: OSI Approved :: Apache Software License',
                'Intended Audience :: Developers',
                'Intended Audience :: System Administrators',
                'Development Status :: 4 - Beta',
-               'Programming Language :: Python :: 2.7',
+               'Programming Language :: Python :: 3.8',
                'Operating System :: POSIX',
                'Topic :: Database',
                'Topic :: Utilities'
