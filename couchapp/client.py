@@ -133,11 +133,7 @@ class CouchdbResource(object):
         headers.setdefault('Accept', 'application/json')
         headers.setdefault('User-Agent', USER_AGENT)
 
-        logger.debug("Resource uri: %s", self.uri)
         logger.debug("Request: %s %s", method, path)
-        logger.debug("Payload: %s", str(payload))
-        logger.debug("Headers: %s", str(headers))
-        logger.debug("Params: %s", str(params))
 
         try:
             resp = requests.request(method, url=path, data=payload,
