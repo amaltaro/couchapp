@@ -134,13 +134,18 @@ class LocalDoc(object):
                 logger.info("Visit your CouchApp here:\n%s", indexurl)
 
     def attachment_stub(self, name, filepath):
-        att = {}
-        with open(filepath, "rb") as f:
-            re_sp = re.compile('\s')
-            att = {"data": re_sp.sub('', base64.b64encode(f.read())),
-                   "content_type":
-                       ';'.join([_f for _f in mimetypes.guess_type(name) if _f])}
-
+        """
+        Encode a byte-like object (attachment) using Base64, but return
+        it in a text string format instead of bytes
+        """
+        re_sp = re.compile('\s')
+        # Alan: strings are tough to deal in python3...
+        # read a binary file and encode its bytes in base64
+        content = util.read(filepath, utf8=False)
+        b64content = base64.b64encode(util.to_bytestring(content))
+        # then decode back to a string sequence
+        att = {"data": re_sp.sub('', b64content.decode("utf-8")),
+               "content_type": ';'.join([_f for _f in mimetypes.guess_type(name) if _f])}
         return att
 
     def doc(self, db=None, with_attachments=True, force=False):
@@ -248,7 +253,6 @@ class LocalDoc(object):
             if "fulltext" in self._doc:
                 package_views(self._doc, self._doc["fulltext"], self.docdir,
                               objects)
-
         return self._doc
 
     def check_ignore(self, item):
@@ -447,8 +451,9 @@ class LocalDoc(object):
         """
         # process main attachments
         dir_ = os.path.join(self.docdir, "_attachments")
-        for attachment in self._process_attachments(dir_):
-            yield attachment
+        if os.path.isdir(dir_):
+            for attachment in self._process_attachments(dir_):
+                yield attachment
 
         vendordir = os.path.join(self.docdir, 'vendor')
         if not os.path.isdir(vendordir):
@@ -460,8 +465,7 @@ class LocalDoc(object):
             if os.path.isdir(current_path):
                 attachdir = os.path.join(current_path, '_attachments')
                 if os.path.isdir(attachdir):
-                    for attachment in self._process_attachments(attachdir,
-                                                                vendor=name):
+                    for attachment in self._process_attachments(attachdir, vendor=name):
                         yield attachment
 
     def index(self, dburl, index):
