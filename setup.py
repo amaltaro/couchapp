@@ -9,8 +9,8 @@ import sys
 from setuptools import setup, find_packages
 import couchapp
 
-if not hasattr(sys, 'version_info') or sys.version_info < (2, 7, 13, 'final'):
-    raise SystemExit("Couchapp requires Python 2.7 or later.")
+if not hasattr(sys, 'version_info') or sys.version_info < (3, 8, 0, 'final'):
+    raise SystemExit("Couchapp requires Python 3.7 or later.")
 
 
 def get_data_files():
