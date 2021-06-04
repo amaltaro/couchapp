@@ -44,7 +44,7 @@ def main():
     with open(os.path.join(os.path.dirname(__file__), 'README.rst')) as f:
         long_description = f.read()
 
-    INSTALL_REQUIRES = ['requests==2.25.1']
+    INSTALL_REQUIRES = ['requests=>2.20.0']
 
     options = dict(
             name='CMSCouchapp',
