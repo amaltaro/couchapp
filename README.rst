@@ -46,7 +46,7 @@ Releases
 --------
 For **python2**, the recommended version is: ``1.2.10``.
 
-For **Python3**, the recommended version is: ``1.3.2``. Note that this version no longer supports python2.
+For **Python3**, the recommended version is: ``1.3.4``. Note that this version no longer supports python2.
 
 Last but not least, releases from ``1.2.2`` to ``1.2.7`` are not fully functional and should not be used.
 
