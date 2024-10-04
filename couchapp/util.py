@@ -165,7 +165,8 @@ def deltree(path):
             os.rmdir(os.path.join(root, name))
     try:
         os.rmdir(path)
-    except:
+    except Exception:
+        logger.warning('Passive error remove directory: %s', path)
         pass
 
 

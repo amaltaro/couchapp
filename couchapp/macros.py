@@ -109,7 +109,7 @@ def run_json_macros(doc, f_string, app_dir):
             count = len(fields)
             include_to = included
             for i, field in enumerate(fields):
-                if not field in library:
+                if field not in library:
                     logger.warning("process json macro: unknown json. Source: %s", mo.group(2))
                     break
                 library = library[field]

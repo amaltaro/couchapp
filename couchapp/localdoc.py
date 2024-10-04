@@ -165,7 +165,7 @@ class LocalDoc(object):
         # get designdoc
         self._doc.update(self.dir_to_fields(self.docdir, manifest=manifest))
 
-        if not 'couchapp' in self._doc:
+        if 'couchapp' not in self._doc:
             self._doc['couchapp'] = {}
 
         self.olddoc = {}
